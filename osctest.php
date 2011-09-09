@@ -5,9 +5,11 @@
  * start this script on a shell using php oscsend.php and enter some
  * oscsend command on another.
  * 
- * oscsend  localhost 10000 /replay/status \
- *          iisisi 1 10047 "20110606-190002" 3600 "SGVsbGFzIFJhZGlvCg==" 1
- * oscsend  localhost 10000 /1/2 sss "asdf" "" "qwer"
+ * oscsend localhost 10000 /replay/status \
+ *         iisisi 1 10047 "20110606-190002" 3600 "SGVsbGFzIFJhZGlvCg==" 1
+ * oscsend localhost 10000 /1/2 sss "asdf" "" "qwer"
+ * oscsend localhost 10000 /box/chan0 1
+ * oscsend localhost 10000 /box/chan1 0
  *
  * PHP Version 5
  *
@@ -32,9 +34,8 @@ require_once 'src/Osc/Parse.php';
 /**
  * load broken hexfloat lib
  * 
- * i plan on groking pack unpack to the extent that i 
- * can do this right in Osc_Parse without getting
- * into trouble.
+ * i plan on groking pack/unpack to the extent that i 
+ * can do this right in Osc_Parse without needing this.
  */
 require_once 'src/Osc/HexFloat.php';
 
