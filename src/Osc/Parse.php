@@ -106,7 +106,10 @@ class Osc_Parse
     public function getResult()
     {
         if ($this->_state != Osc_Parse::STATE_DONE) {
-            trigger_error("getResult called on unfinished parse", E_USER_ERROR);
+            trigger_error(
+                "getResult called on unfinished parse",
+                E_USER_WARNING
+            );
         } else {
             return array(
                 "address" => $this->_address,
@@ -123,7 +126,7 @@ class Osc_Parse
     public function parse() 
     {
         $byteindex = 1;
-        while (!empty($this->_data)) {
+        while (true) {
             switch($this->_state) {
             case Osc_Parse::STATE_INIT:
 
@@ -188,7 +191,9 @@ class Osc_Parse
 
                 break;
             case Osc_Parse::STATE_DONE:
-                // break
+                if (empty($this->_data)) {
+                    return;
+                }
             default:
                 $this->remains .= chr(hexdec(array_shift($this->_data)));
                 $byteindex++;
@@ -380,6 +385,14 @@ class Osc_Parse
             case "c":
                 $state = Osc_Parse::STATE_DATA_CHAR;
                 break 2;
+            case "m":
+                $v = '';
+                for ($i = 0; $i < 4; $i++) {
+                    $v .= sprintf("%02s", array_shift($this->_data));
+                    $byteindex++;
+                }
+                $this->_store[] = $v;
+                break 2;
             case "T":
                 $this->_store[] = true;
                 break 2;
@@ -390,7 +403,7 @@ class Osc_Parse
                 $this->_store[] = null;
                 break 2;
             case "I":
-                $this->_store[] = 1/0;
+                $this->_store[] = log(0);
                 break 2;
 
             default:
@@ -401,7 +414,7 @@ class Osc_Parse
                 break 2;
             }
         }
-        if (empty($this->_schema) && empty($this->_data)) {
+        if (empty($this->_schema)) {
             $state = Osc_Parse::STATE_DONE;
         }
         return $state;

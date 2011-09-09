@@ -10,6 +10,8 @@
  * oscsend localhost 10000 /1/2 sss "asdf" "" "qwer"
  * oscsend localhost 10000 /box/chan0 1
  * oscsend localhost 10000 /box/chan1 0
+ * oscsend localhost 10000 // TTFFNNI 0 0 0 0 0 0 0
+ * oscsend localhost 10000 /SYN/0/1 im 2 000000ff
  *
  * PHP Version 5
  *
