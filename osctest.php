@@ -66,6 +66,9 @@ while (true) {
         if ($debug) {
             var_dump($osc);
         }
-        var_dump($osc->getResult());
+        $r = $osc->getResult();
+        $r["sourceip"] = $f;
+        $r["sourceport"] = $p;
+        var_dump($r);
     }
 }
