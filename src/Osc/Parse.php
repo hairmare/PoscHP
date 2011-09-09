@@ -9,7 +9,7 @@
  * @subpackage Protocol
  * @author     Lucas S. Bickel <hairmare@purplehaze.ch>
  * @copyright  2011 Lucas S. Bickel 2011 - Alle Rechte vorbehalten
- * @license    http://osc.purplehaze.ch/LICENSE GPLv3
+ * @license    http://www.gnu.org/licenses/gpl-3.0.txt GPLv3
  * @link       http://osc.purplehaze.ch
  */
 
@@ -21,11 +21,15 @@
  * @package    Osc
  * @subpackage Protocol
  * @author     Lucas S. Bickel <hairmare@purplehaze.ch>
- * @license    http://osc.purplehaze.ch/LICENSE GPLv3
+ * @license    http://www.gnu.org/licenses/gpl-3.0.txt GPLv3
  * @link       http://osc.purplehaze.ch
  */
 class Osc_Parse
 {
+    /**
+     * constants for internal state
+     * @var Integer
+     */
     const STATE_INIT = 0;
     const STATE_ADDRESS = 1;
     const STATE_ADDRESS_PARSED = 2;
@@ -37,11 +41,32 @@ class Osc_Parse
     const STATE_DATA_DEFAULT = 22;
     const STATE_DONE = 99;
 
-    private $_debug = true;
-
+    /**
+     * debug mode switch
+     * @var Boolean
+     */
+    private $_debug = false;
+    
+    /**
+     * current parser state
+     *
+     * @var Integer
+     */
     private $_state = Osc_Parse::STATE_INIT;
 
+    /**
+     * buffer from socket_recvfrom()
+     *
+     * @var Array
+     */
     private $_data;
+
+    /**
+     * store for parsed data
+     *
+     * @var Array
+     */
+    private $_store;
 
     /**
      * Pass data recieved with socket_recvfrom() here.
@@ -53,7 +78,41 @@ class Osc_Parse
     public function setDataString($buffer)
     {
         // serialize it right away
-        $this->_data = array_map('dechex', array_map('ord', str_split($buffer)));
+        $ordstr = array_map('ord', str_split($buffer));
+        $this->_data = array_map('dechex', $ordstr);
+    }
+
+    /**
+     * Toggle or set debug flag
+     *
+     * @param Boolean $debug Debug On/Off
+     *
+     * @return void
+     */
+    public function setDebug($debug = null)
+    {
+        if (is_null($debug)) {
+            $this->_debug = ! $this->_debug;
+        } else {
+            $this->_debug = $debug;
+        }
+    }
+
+    /**
+     * Get the results.
+     *
+     * @return Array
+     */
+    public function getResult()
+    {
+        if ($this->_state != Osc_Parse::STATE_DONE) {
+            trigger_error("getResult called on unfinished parse", E_USER_ERROR);
+        } else {
+            return array(
+                "address" => $this->_address,
+                "data" => $this->_store
+            );
+        }
     }
 
     /**
@@ -69,25 +128,25 @@ class Osc_Parse
             case Osc_Parse::STATE_INIT:
 
                 // look for OSC Address
-                $this->_state = $this->_recvAddress($byteindex++);
+                $this->_setState($this->_recvAddress($byteindex++));
                 break;
 
             case Osc_Parse::STATE_ADDRESS:
                 
-                $this->_state = $this->_filterAddress();
+                $this->_setState($this->_filterAddress());
 
             case Osc_Parse::STATE_ADDRESS_PARSED:
 
-                $this->_state = $this->_recvSchema($byteindex++);
+                $this->_setState($this->_recvSchema($byteindex++));
                 break;
 
             case Osc_Parse::STATE_SCHEMA:
 
-                $this->_state = $this->_digestSchema();
+                $this->_setState($this->_digestSchema());
 
             case Osc_Parse::STATE_SCHEMA_PARSED:
 
-                $this->_state = $this->_parseBySchema(&$byteindex);
+                $this->_setState($this->_parseBySchema(&$byteindex));
                 break;
 
             case Osc_Parse::STATE_DATA_STRING:
@@ -98,19 +157,22 @@ class Osc_Parse
                 $stringdata .= chr(hexdec(array_shift($this->_data)));
                 $byteindex++;
 
-                if ($this->_data[0] == "0") {
+                if ($this->_data[0] == "0" && $byteindex % 4 == 0) {
 
                     if ($this->_debug) {
                         printf("Found String '%s'\n", $stringdata);
                     }
 
-                    // @todo fix empty string handling
                     $this->_store[] = $stringdata;
                     $stringdata = null;
                     array_shift($this->_data);
                     $byteindex++;
 
-                    $this->_state = Osc_Parse::STATE_SCHEMA_PARSED;
+                    if (empty($this->_data) && empty($this->_schema)) {
+                        $this->_setState(Osc_Parse::STATE_DONE);
+                    } else {
+                        $this->_setState(Osc_Parse::STATE_SCHEMA_PARSED);
+                    }
                 }
                 
                 break;
@@ -122,7 +184,7 @@ class Osc_Parse
                 }
                 $this->_store[] = chr(hexdec(array_shift($this->_data)));
                 $byteindex++;
-                $this->_state = Osc_Parse::STATE_SCHEMA_PARSED;
+                $this->_setState(Osc_Parse::STATE_SCHEMA_PARSED);
 
                 break;
             case Osc_Parse::STATE_DONE:
@@ -131,9 +193,25 @@ class Osc_Parse
                 $this->remains .= chr(hexdec(array_shift($this->_data)));
                 $byteindex++;
             }
-
-            printf("Loop with state %s\n", $this->_state);
         }
+    }
+
+    /**
+     * Set the new state.
+     *
+     * @param Integer $state new State to set
+     *
+     * @return void
+     */
+    private function _setState($state)
+    {
+        if ($this->_state == $state) {
+            return;
+        }
+        if ($this->_debug) {
+            printf("Switching state from %1s to %2s.\n", $this->_state, $state);
+        }
+        $this->_state = $state;
     }
 
     /**
@@ -268,7 +346,7 @@ class Osc_Parse
                 }
                 trigger_error(
                     "OSC Float support is extremely broken, do not " .
-                    "rely on these numbers", E_USER_WARNING,
+                    "rely on these numbers",
                     E_USER_WARNING
                 );
                 $this->_store[] = $r;
@@ -317,6 +395,9 @@ class Osc_Parse
                 }
                 break 2;
             }
+        }
+        if (empty($this->_schema) && empty($this->_data)) {
+            $state = Osc_Parse::STATE_DONE;
         }
         return $state;
     }
