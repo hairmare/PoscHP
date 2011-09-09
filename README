@@ -1,0 +1,27 @@
+PoscHP - OSC for PHP
+
+INTRO
+
+Right now all i have here is a proof of concept binary stream parser
+based on a simple state machine. This was written mainly to show that
+such a thing is feasible without needing to hack much C. For a fully
+working OSC implementation for PHP this still needs heaps of work.
+
+QUICKSTART
+
+ git clone git://github.com/hairmare/PoscHP.git
+ cd PoscHP
+ php osctest.php &
+ oscsend localhost 10000 /replay/status \
+         iisisi 1 10047 "20110606-190002" 3600 "SGVsbGFzIFJhZGlvCg==" 1
+
+TODO (in no particular order)
+
+- Daemon Infrastructure (based on pear/System_Daemon?)
+- OSC Sending Framework (see http://andy.schmeder.net/files/OSC.phps)
+- stable logging and exception handling
+- fix OSC Float support (maybe andy.scheders code contains the hint)
+- add tons of documentation
+- find a way to read the dest ip and port (patch socket_recvfrom?)
+- get rid of remaining getResult called on unfinished parse problems
+
