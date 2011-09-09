@@ -14,6 +14,11 @@
  */
 
 /**
+ * Hex to Float parsing is external and broken for now
+ */
+require_once "Osc/HexFloat.php";
+
+/**
  * Parser for OSC messages
  *
  * @class
@@ -69,6 +74,12 @@ class Osc_Parse
     private $_store;
 
     /**
+     * store for osc datagram adress
+     * @var String
+     */
+    private $_address;
+
+    /**
      * Pass data recieved with socket_recvfrom() here.
      *
      * @param String $buffer Binary Stream from socket_recvfrom()
@@ -80,6 +91,10 @@ class Osc_Parse
         // serialize it right away
         $ordstr = array_map('ord', str_split($buffer));
         $this->_data = array_map('dechex', $ordstr);
+        $this->_address = null;
+        $this->_store = array();
+        $this->_schema = array();
+        $this->_setState(Osc_Parse::STATE_INIT);
     }
 
     /**
@@ -149,7 +164,7 @@ class Osc_Parse
 
             case Osc_Parse::STATE_SCHEMA_PARSED:
 
-                $this->_setState($this->_parseBySchema(&$byteindex));
+                $this->_setState($this->_parseBySchema($byteindex));
                 break;
 
             case Osc_Parse::STATE_DATA_STRING:
