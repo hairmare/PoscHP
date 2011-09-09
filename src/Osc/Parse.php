@@ -340,15 +340,15 @@ class Osc_Parse
                      $v .= sprintf("%02s", array_shift($this->_data));
                      $byteindex++;
                 }
-                $r = hexTo32Float($v);
+                $r = Osc_HexFloat::hexTo32Float($v);
                 if ($this->_debug) {
                     printf("Got Float %s = %s\n", $v, var_export($r, true));
                 }
                 trigger_error(
-                    "OSC Float support is extremely broken, do not " .
-                    "rely on these numbers",
+                    "Float support is broken, returning 0", 
                     E_USER_WARNING
                 );
+                $r = 0;
                 $this->_store[] = $r;
                 break 2;
 
@@ -359,10 +359,15 @@ class Osc_Parse
                     $v .= sprintf("%02s", array_shift($this->_data));
                     $byteindex++;
                 }
-                $r = hexTo64Float($v);
+                $r = Osc_HexFloat::hexTo64Float($v);
                 if ($this->_debug) {
                     printf("Got Float %s = %s\n", $v, var_export($r, true));
                 }
+                trigger_error(
+                    "Float support is broken, returning 0", 
+                    E_USER_WARNING
+                );
+                $r = 0;
                 $this->_store[] = $r;
                 break 2;
 
