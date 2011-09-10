@@ -27,6 +27,7 @@
 $debug = false;
 $ip = 'localhost';
 $port = 10000;
+ini_set('include_path', 'src/:'.ini_get('include_path'));
 
 /**
  * load osc lib

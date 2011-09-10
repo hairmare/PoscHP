@@ -15,13 +15,33 @@ QUICKSTART
  oscsend localhost 10000 /replay/status \
          iisisi 1 10047 "20110606-190002" 3600 "SGVsbGFzIFJhZGlvCg==" 1
 
+FEATURES
+
+PoscHP supports parsing of simple OSC messages containing the following variable
+types
+
+- integers (i/h)
+- strings (s/S) and char (c)
+- boolean (T/F)
+- special numbers (I/N)
+- arrays ([/])
+
+an example implementation of the parser is given in the Osc_LogDaemon
+component that uses pears System_Daemon and Log subsystems to demonstrate
+what can be done with PoscHP.
+
+
 TODO (in no particular order)
 
-- Daemon Infrastructure (based on pear/System_Daemon?)
+- Daemon Infrastructure (based on pear/System_Daemon)
 - OSC Sending Framework (see http://andy.schmeder.net/files/OSC.phps)
 - stable logging and exception handling
 - fix OSC Float support (maybe andy.scheders code contains the hint)
 - add tons of documentation
 - find a way to read the dest ip and port (patch socket_recvfrom?)
 - get rid of remaining getResult called on unfinished parse problems
-
+- support timestamps and blobs and whatnot
+- support bundles
+- support timestamped bundles (execute in future and/or ignore stale)
+- message dispatching and pattern matching as per osc specs
+- hack this so it might also run on LE machines (anyone?)

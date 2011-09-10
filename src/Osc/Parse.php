@@ -71,7 +71,16 @@ class Osc_Parse
      *
      * @var Array
      */
-    private $_store;
+    private $_store = array();
+
+    /**
+     * what store to write to
+     *
+     * @var String
+     */
+    private $_currentStore = "_store";
+
+    private $_storeStack = array();
 
     /**
      * store for osc datagram adress
@@ -91,10 +100,13 @@ class Osc_Parse
         // serialize it right away
         $ordstr = array_map('ord', str_split($buffer));
         $this->_data = array_map('dechex', $ordstr);
-        $this->_address = null;
+        unset($this->_address);
+        unset($this->_schema);
         $this->_store = array();
-        $this->_schema = array();
         $this->_setState(Osc_Parse::STATE_INIT);
+        if ($this->_debug) {
+            var_dump($this->_data);
+        }
     }
 
     /**
@@ -140,13 +152,13 @@ class Osc_Parse
      */
     public function parse() 
     {
-        $byteindex = 1;
+        $this->_bidx = 1;
         while (true) {
             switch($this->_state) {
             case Osc_Parse::STATE_INIT:
 
                 // look for OSC Address
-                $this->_setState($this->_recvAddress($byteindex++));
+                $this->_setState($this->_recvAddress($this->_bidx++));
                 break;
 
             case Osc_Parse::STATE_ADDRESS:
@@ -155,7 +167,7 @@ class Osc_Parse
 
             case Osc_Parse::STATE_ADDRESS_PARSED:
 
-                $this->_setState($this->_recvSchema($byteindex++));
+                $this->_setState($this->_recvSchema());
                 break;
 
             case Osc_Parse::STATE_SCHEMA:
@@ -164,7 +176,7 @@ class Osc_Parse
 
             case Osc_Parse::STATE_SCHEMA_PARSED:
 
-                $this->_setState($this->_parseBySchema($byteindex));
+                $this->_setState($this->_parseBySchema($this->_bidx));
                 break;
 
             case Osc_Parse::STATE_DATA_STRING:
@@ -173,18 +185,20 @@ class Osc_Parse
                     static $stringdata = "";
                 }
                 $stringdata .= chr(hexdec(array_shift($this->_data)));
-                $byteindex++;
+                $this->_bidx++;
 
-                if ($this->_data[0] == "0" && $byteindex % 4 == 0) {
+                $end = !array_key_exists(0, $this->_data) 
+                    || $this->_data[0] == "0";
+                if ($end && $this->_bidx % 4 == 0) {
 
                     if ($this->_debug) {
                         printf("Found String '%s'\n", $stringdata);
                     }
 
-                    $this->_store[] = $stringdata;
+                    $this->_appendStore($stringdata);
                     $stringdata = null;
                     array_shift($this->_data);
-                    $byteindex++;
+                    $this->_bidx++;
 
                     if (empty($this->_data) && empty($this->_schema)) {
                         $this->_setState(Osc_Parse::STATE_DONE);
@@ -200,8 +214,8 @@ class Osc_Parse
                 if ($this->_debug) {
                     printf("Found Char %s\n", chr(hexdec($this->_data[0])));
                 }
-                $this->_store[] = chr(hexdec(array_shift($this->_data)));
-                $byteindex++;
+                $this->_appendStore(chr(hexdec(array_shift($this->_data))));
+                $this->_bidx++;
                 $this->_setState(Osc_Parse::STATE_SCHEMA_PARSED);
 
                 break;
@@ -211,7 +225,7 @@ class Osc_Parse
                 }
             default:
                 $this->remains .= chr(hexdec(array_shift($this->_data)));
-                $byteindex++;
+                $this->_bidx++;
             }
         }
     }
@@ -235,16 +249,109 @@ class Osc_Parse
     }
 
     /**
+     * set which storage stack we are writing to
+     *
+     * @param String $name Store name
+     *
+     * @return void
+     */
+    private function _setStore($name)
+    {
+        $vname = "_".$name;
+        array_push($this->_storeStack, $this->_currentStore);
+        $this->_currentStore = $vname;
+        if (empty($this->$vname)) {
+            $this->$vname = array();
+        }
+    }
+
+    /**
+     * pop the last value off of storestack and use that for storage
+     *
+     * @return void
+     */
+    private function _popStore()
+    {
+        $vname = array_pop($this->_storeStack);
+        $this->_currentStore = $vname;
+    }
+
+    /**
+     * append data to _store
+     *
+     * @param Mixed $data Data to append
+     *
+     * @return void
+     */
+    private function _appendStore($data)
+    {
+        $vname = $this->_currentStore;
+        array_push($this->$vname, $data);
+    }
+
+    /**
+     * get an array from the array store
+     *
+     * @param Integer $arraylevel how deeply nested we are
+     *
+     * @return Array
+     */
+    private function _getArray($arraylevel)
+    {
+        $varname = "_array$arraylevel";
+        $array = $this->$varname;
+        unset($this->$varname);
+        return $array;
+    }
+
+    /**
+     * Shift multiple bytes off of _data
+     *
+     * @param Integer $count    number of bytes to return
+     * @param String  $operator how to combine string (sprintf02, concat, array)
+     *
+     * @return String
+     */
+    private function _multiByteShift($count, $operator = 'sprintf02')
+    {
+        if ($operator == 'array') {
+            $v = array();
+        } else {
+            $v = '';
+        }
+        for ($i = 0; $i < $count; $i++) {
+            switch ($operator) {
+            case "concat":
+
+                $v .= array_shift($this->_data);
+                break;
+
+            case "array":
+
+                $v[] = array_shift($this->_data);
+                break;
+
+            case "sprintf02":
+            default:
+                $v .= sprintf("%02s", array_shift($this->_data));
+                break;
+            }
+            $this->_bidx++;
+        }
+        return $v;
+    }
+
+    /**
      * Read data until OSC address is complete.
      *
-     * @param Integer $byteindex What position of the stream we are looking at.
+     * @param Integer $bidx obsolete
      *
      * @return Integer State
      */
-    private function _recvAddress($byteindex)
+    private function _recvAddress($bidx = null)
     {
 
-        if ($this->_data[0] == "0" && $byteindex % 4 == 0) {
+        if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
             // complete adress detected
             array_shift($this->_data);
             $state = Osc_Parse::STATE_ADDRESS;
@@ -275,14 +382,12 @@ class Osc_Parse
     /**
      * Read data until OSC data schema is complete.
      *
-     * @param Integer $byteindex What position of the stream we are looking at.
-     *
      * @return Integer State
      */
-    private function _recvSchema($byteindex)
+    private function _recvSchema()
     {
         $state = $this->_state;
-        if ($this->_data[0] == "0" && $byteindex % 4 == 0) {
+        if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
             if (!empty($this->_schema)) {
                 $state = Osc_Parse::STATE_SCHEMA;
             }
@@ -292,6 +397,7 @@ class Osc_Parse
         } else {
             array_shift($this->_data);
         }
+        $this->_bidx++;
         return $state;
     }
 
@@ -314,11 +420,11 @@ class Osc_Parse
     /**
      * Parse values into storage until schema stack is empty.
      *
-     * @param Integer &$byteindex What position of the stream we are looking at.
+     * @param Integer $bidx obsolete
      *
      * @return Integer State
      */
-    private function _parseBySchema(&$byteindex)
+    private function _parseBySchema($bidx = null)
     {
         $state = $this->_state;
         while (!empty($this->_schema)) {
@@ -329,15 +435,12 @@ class Osc_Parse
             switch(array_shift($this->_schema)) {
             case "i":
 
-                $v = '';
-                for ($i = 0; $i < 4; $i++) {
-                    $v .= sprintf("%02s", array_shift($this->_data));
-                    $byteindex++;
-                }
+                $v = $this->_multiByteShift(4);
+
                 if ($this->_debug) {
                     printf("Got Int %s = %s\n", $v, hexdec($v));
                 }
-                $this->_store[] = hexdec($v);
+                $this->_appendStore(hexdec($v));
                 break 2;
 
             case "h":
@@ -345,12 +448,12 @@ class Osc_Parse
                 $v = '';
                 for ($i = 0; $i < 8; $i++) {
                     $v .= sprintf("%02s", array_shift($this->_data));
-                    $byteindex++;
+                    $this->_bidx++;
                 }
                 if ($this->_debug) {
                     printf("Got LargeInt %s = %s\n", $v, hexdec($v));
                 }
-                $this->_store[] = hexdec($v);
+                $this->_appendStore(hexdec($v));
                 break 2;
 
             case "f":
@@ -358,7 +461,7 @@ class Osc_Parse
 
                 for ($i = 0; $i < 4; $i++) {
                      $v .= sprintf("%02s", array_shift($this->_data));
-                     $byteindex++;
+                     $this->_bidx++;
                 }
                 $r = Osc_HexFloat::hexTo32Float($v);
                 if ($this->_debug) {
@@ -369,17 +472,12 @@ class Osc_Parse
                     E_USER_WARNING
                 );
                 $r = 0;
-                $this->_store[] = $r;
+                $this->_appendStore($r);
                 break 2;
 
             case "d":
 
-                $v = '';
-                for ($i = 0; $i < 8; $i++) {
-                    $v .= sprintf("%02s", array_shift($this->_data));
-                    $byteindex++;
-                }
-                $r = Osc_HexFloat::hexTo64Float($v);
+                $r = Osc_HexFloat::hexTo64Float($this->_multiByteShift(8));
                 if ($this->_debug) {
                     printf("Got Float %s = %s\n", $v, var_export($r, true));
                 }
@@ -388,13 +486,34 @@ class Osc_Parse
                     E_USER_WARNING
                 );
                 $r = 0;
-                $this->_store[] = $r;
+                $this->_appendStore($r);
                 break 2;
 
             case "S":
             case "s":
 
                 $state = Osc_Parse::STATE_DATA_STRING;
+                break 2;
+
+            case "t":
+                // @todo support timestamp
+                trigger_error(
+                    "Timestamp support is broken,", 
+                    E_USER_WARNING
+                );
+                $ts = $this->_multiByteShift(8, 'array');
+                $this->_appendStore($ts);
+                break 2;
+                
+            case "b":
+                // @todo support blob
+                trigger_error(
+                    "Blob support is broken,", 
+                    E_USER_WARNING
+                );
+                $size = hexdec($this->_multiByteShift(4));
+                $blob = $this->_multiByteShift($size, 'array');
+                $this->_appendStore($blob);
                 break 2;
 
             case "c":
@@ -404,22 +523,33 @@ class Osc_Parse
                 $v = '';
                 for ($i = 0; $i < 4; $i++) {
                     $v .= sprintf("%02s", array_shift($this->_data));
-                    $byteindex++;
+                    $this->_bidx++;
                 }
-                $this->_store[] = $v;
+                $this->_appendStore($v);
                 break 2;
             case "T":
-                $this->_store[] = true;
+                $this->_appendStore(true);
                 break 2;
             case "F":
-                $this->_store[] = false;
+                $this->_appendStore(false);
                 break 2;
             case "N":
-                $this->_store[] = null;
+                $this->_appendStore(null);
                 break 2;
             case "I":
-                $this->_store[] = log(0);
+                $this->_appendStore(log(0));
                 break 2;
+            case "[":
+                if (empty($this->_alvl)) {
+                    $this->_alvl = 0;
+                }
+                $this->_setStore("array".$this->_alvl++);
+                break 2;
+            case "]":
+                $this->_popStore();
+                $array = $this->_getArray(--$this->_alvl);
+                $this->_appendStore($array);
+                break;
 
             default:
 
