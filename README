@@ -17,8 +17,9 @@ QUICKSTART
 
 FEATURES
 
-PoscHP supports parsing of simple OSC messages containing the following variable
-types
+PoscHP supports parsing of OSC messages and OSC bundles. 
+
+Its supports the following variable types.
 
 - integers (i/h)
 - strings (s/S) and char (c)
@@ -26,8 +27,8 @@ types
 - special numbers (I/N)
 - arrays ([/])
 
-an example implementation of the parser is given in the Osc_LogDaemon
-component that uses pears System_Daemon and Log subsystems to demonstrate
+An example implementation of the parser is given in the Osc_LogDaemon
+component which uses pears System_Daemon and Log subsystems to demonstrate
 what can be done with PoscHP.
 
 
@@ -41,7 +42,6 @@ TODO (in no particular order)
 - find a way to read the dest ip and port (patch socket_recvfrom?)
 - get rid of remaining getResult called on unfinished parse problems
 - support timestamps and blobs and whatnot
-- support bundles
 - support timestamped bundles (execute in future and/or ignore stale)
 - message dispatching and pattern matching as per osc specs
 - hack this so it might also run on LE machines (anyone?)

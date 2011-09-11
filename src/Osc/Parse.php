@@ -100,13 +100,16 @@ class Osc_Parse
         // serialize it right away
         $ordstr = array_map('ord', str_split($buffer));
         $this->_data = array_map('dechex', $ordstr);
-        unset($this->_address);
-        unset($this->_schema);
-        $this->_store = array();
-        $this->_setState(Osc_Parse::STATE_INIT);
+        $this->_reset();
         if ($this->_debug) {
             var_dump($this->_data);
         }
+    }
+
+    public function setData($buffer)
+    {
+        $this->_data = $buffer;
+        $this->_reset();
     }
 
     /**
@@ -158,7 +161,7 @@ class Osc_Parse
             case Osc_Parse::STATE_INIT:
 
                 // look for OSC Address
-                $this->_setState($this->_recvAddress($this->_bidx++));
+                $this->_setState($this->_recvAddress());
                 break;
 
             case Osc_Parse::STATE_ADDRESS:
@@ -176,7 +179,7 @@ class Osc_Parse
 
             case Osc_Parse::STATE_SCHEMA_PARSED:
 
-                $this->_setState($this->_parseBySchema($this->_bidx));
+                $this->_setState($this->_parseBySchema());
                 break;
 
             case Osc_Parse::STATE_DATA_STRING:
@@ -228,6 +231,14 @@ class Osc_Parse
                 $this->_bidx++;
             }
         }
+    }
+
+    private function _reset()
+    {
+        unset($this->_address);
+        unset($this->_schema);
+        $this->_store = array();
+        $this->_setState(Osc_Parse::STATE_INIT);
     }
 
     /**
@@ -344,14 +355,14 @@ class Osc_Parse
     /**
      * Read data until OSC address is complete.
      *
-     * @param Integer $bidx obsolete
-     *
      * @return Integer State
      */
-    private function _recvAddress($bidx = null)
+    private function _recvAddress()
     {
-
-        if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
+        if (empty($this->_data)) {
+            // just an address? probably wrong but lets not loop over that
+            $state = Osc_Parse::STATE_ADDRESS;
+        } else if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
             // complete adress detected
             array_shift($this->_data);
             $state = Osc_Parse::STATE_ADDRESS;
@@ -359,6 +370,7 @@ class Osc_Parse
             $this->_address .= chr(hexdec(array_shift($this->_data)));
             $state = $this->_state;
         }
+        $this->_bidx++;
         return $state;
     }
 
@@ -372,11 +384,54 @@ class Osc_Parse
         if ($this->_debug) {
             printf("Got Adress %s\n", $this->_address);
         }
+        $state = Osc_Parse::STATE_ADDRESS_PARSED;
 
-        // check if we are interested in the address
+        // check if we are interested somehow in the address
+
+        // special handling for bundles
+        if (substr($this->_address, 0, 7) == "#bundle") {
+            $state = $this->_parseBundles();
+        }
+
         // @todo add filtering through nice delegation framework
+        //       this will also store data for deferred execution
         
-        return Osc_Parse::STATE_ADDRESS_PARSED;
+        return $state;
+    }
+
+    private function _parseBundles() 
+    {
+        $state = $this->_state;
+
+        // @todo add bundle ts handling
+        $bundlets = $this->_multiByteShift(8, 'array');
+
+        while (!empty($this->_data)) {
+            $bundlesize = hexdec($this->_multiByteShift(4));
+            if ($bundlesize % 4 !== 0) {
+                $bundlesize++;
+            }
+            $bundledata = $this->_multiByteShift($bundlesize, 'array');
+
+            if ($this->_debug) {
+                printf("Found Bundle of length %s\n", $bundlesize);
+            }
+
+            $bundleparse = new Osc_Parse();
+            $bundleparse->setDebug($this->_debug);
+            $bundleparse->setData($bundledata);
+            $bundleparse->parse();
+
+            if ($this->_debug) {
+                printf("Parsed bundle.");
+                var_dump($bundleparse->getResult());
+            }
+
+            $this->_appendStore($bundleparse->getResult());
+        }
+
+        $state = Osc_Parse::STATE_DONE;
+        return $state;
     }
 
     /**
@@ -387,7 +442,14 @@ class Osc_Parse
     private function _recvSchema()
     {
         $state = $this->_state;
-        if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
+        if (empty($this->_data)) {
+            // this is most likely a bundle!
+            if ($this->_debug) {
+                printf("Missing schema, probably bundle.\n");
+            }
+            $state = Osc_Parse::STATE_DONE;
+
+        } else if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
             if (!empty($this->_schema)) {
                 $state = Osc_Parse::STATE_SCHEMA;
             }
@@ -512,6 +574,9 @@ class Osc_Parse
                     E_USER_WARNING
                 );
                 $size = hexdec($this->_multiByteShift(4));
+                while ($size % 4 != 0) {
+                    $size++;
+                }
                 $blob = $this->_multiByteShift($size, 'array');
                 $this->_appendStore($blob);
                 break 2;
