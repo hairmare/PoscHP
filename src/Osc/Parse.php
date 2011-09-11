@@ -589,11 +589,14 @@ class Osc_Parse
                 $sec = hexdec($this->_multiByteShift(4));
                 $msec = hexdec($this->_multiByteShift(4));
 
+
                 // set osc special case to now
                 if ($sec == 0 && $msec == 1) {
                     $this->_appendStore(new DateTime);
                 } else {
-                    $this->_appendStore(array($sec, $msec));
+                    $date = new DateTime('1900/1/1');
+                    $date->add(new DateInterval(sprintf("PT%sS.", $sec)));
+                    $this->_appendStore($date);
                 }
                 break 2;
                 

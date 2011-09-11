@@ -26,22 +26,23 @@ Its supports the following variable types.
 - boolean (T/F)
 - special numbers (I/N)
 - arrays ([/])
+- timestamps (t) implemented but rather untested
 
 An example implementation of the parser is given in the Osc_LogDaemon
 component which uses pears System_Daemon and Log subsystems to demonstrate
 what can be done with PoscHP.
 
-
 TODO (in no particular order)
 
-- Daemon Infrastructure (based on pear/System_Daemon)
+- Daemon Infrastructure (based on https://github.com/brianlmoon/GearmanManager)
 - OSC Sending Framework (see http://andy.schmeder.net/files/OSC.phps)
 - stable logging and exception handling
-- fix OSC Float support (maybe andy.scheders code contains the hint)
+- fix OSC Float support (maybe andy schmeders code contains the hint)
 - add tons of documentation
-- find a way to read the dest ip and port (patch socket_recvfrom?)
-- get rid of remaining getResult called on unfinished parse problems
-- support timestamps and blobs and whatnot
+- find a way to read the dest ip and port
+  socket_recvfrom uses recvfrom and that does not have dest
+  rcvmsg has a way of getting to the data (man 7 ip -> IP_PKTINFO)
+- support blobs
 - support timestamped bundles (execute in future and/or ignore stale)
 - message dispatching and pattern matching as per osc specs
 - hack this so it might also run on LE machines (anyone?)
