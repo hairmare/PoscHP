@@ -62,6 +62,9 @@ class Osc_Parse
     /**
      * buffer from socket_recvfrom()
      *
+     * This buffer contains an array of single chars (in hex) from the input
+     * buffer. This way the data buffer is nearly human readable.
+     *
      * @var Array
      */
     private $_data;
@@ -80,6 +83,11 @@ class Osc_Parse
      */
     private $_currentStore = "_store";
 
+    /**
+     * stack of stores used to handle nested arrays
+     *
+     * @var Array
+     */
     private $_storeStack = array();
 
     /**
@@ -87,6 +95,13 @@ class Osc_Parse
      * @var String
      */
     private $_address;
+
+    /**
+     * position in buffer during parse
+     *
+     * @var Integer
+     */
+    private $_bidx;
 
     /**
      * Pass data recieved with socket_recvfrom() here.
@@ -160,6 +175,15 @@ class Osc_Parse
 
     /**
      * Parse the data waiting in the internal buffer.
+     *
+     * Call this after having recieved a OSC datagram you would like
+     * to parse.
+     *
+     * This method implements the first level of our state machine.
+     * {@see Osc_Parse::_parseBySchema()} for the rest of the state
+     * machine.
+     *
+     * @todo refactor large code blocks into their own methods
      *
      * @return void
      */
@@ -245,6 +269,9 @@ class Osc_Parse
 
     /**
      * clear all internal storage except data
+     *
+     * This is needed before parsing and is called immediatly after
+     * loading new data into an instance.
      *
      * @return void
      */
@@ -333,6 +360,12 @@ class Osc_Parse
     /**
      * Shift multiple bytes off of _data
      *
+     * This is used to shift bytes off of data. For OSC it does not make
+     8 sense calling this with anything other than a $count that is divisible
+     * by 4. This is due to OSC being 32 bit safe.
+     * The various operators define how the data is concatenated and they are
+     * based on the use cases i ran across so far.
+     *
      * @param Integer $count    number of bytes to return
      * @param String  $operator how to combine string (sprintf02, concat, array)
      *
@@ -401,16 +434,11 @@ class Osc_Parse
         }
         $state = Osc_Parse::STATE_ADDRESS_PARSED;
 
-        // check if we are interested somehow in the address
-
-        // special handling for bundles
+        // special handling for bundles with "register" #bundle address
         if (substr($this->_address, 0, 7) == "#bundle") {
             $state = $this->_parseBundles();
         }
 
-        // @todo add filtering through nice delegation framework
-        //       this will also store data for deferred execution
-        
         return $state;
     }
 
@@ -467,19 +495,21 @@ class Osc_Parse
         $state = $this->_state;
         if (empty($this->_data)) {
             // this is most likely a bundle!
-            if ($this->_debug) {
-                printf("Missing schema, probably bundle.\n");
-            }
             $state = Osc_Parse::STATE_DONE;
 
         } else if ($this->_data[0] == "0" && $this->_bidx % 4 == 0) {
+            // schema is complete
             if (!empty($this->_schema)) {
                 $state = Osc_Parse::STATE_SCHEMA;
             }
             array_shift($this->_data);
+
         } else if ($this->_data[0] != "0") {
+            // read next byte from schema
             $this->_schema .= chr(hexdec(array_shift($this->_data)));
+
         } else {
+            // discard anything else (most likely \0 padding)
             array_shift($this->_data);
         }
         $this->_bidx++;
@@ -487,7 +517,7 @@ class Osc_Parse
     }
 
     /**
-     * Split schema into tokens
+     * Split schema into tokens (aka str_split)
      *
      * @return Integer State
      */
@@ -505,11 +535,16 @@ class Osc_Parse
     /**
      * Parse values into storage until schema stack is empty.
      *
-     * @param Integer $bidx obsolete
+     * This is the second large part of our state machine. The first
+     * part {@see Osc_Parse::parse()) was responsible for parsing
+     * the packet at large. Here we what remains of a packet after
+     * detecting an osc format string (aka schema).
+     *
+     * @todo refactor large code blocks into their own methods
      *
      * @return Integer State
      */
-    private function _parseBySchema($bidx = null)
+    private function _parseBySchema()
     {
         $state = $this->_state;
         while (!empty($this->_schema)) {
