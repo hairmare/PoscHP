@@ -106,6 +106,16 @@ class Osc_Parse
         }
     }
 
+    /**
+     * Set literal pre parsed data
+     *
+     * this is used for parsing buffers where we already have a converted
+     * stream input but still need a new parser.
+     *
+     * @param Array $buffer Array of Hex Patterns as single byte sting
+     *
+     * @return void
+     */ 
     public function setData($buffer)
     {
         $this->_data = $buffer;
@@ -233,6 +243,11 @@ class Osc_Parse
         }
     }
 
+    /**
+     * clear all internal storage except data
+     *
+     * @return void
+     */
     private function _reset()
     {
         unset($this->_address);
@@ -399,6 +414,14 @@ class Osc_Parse
         return $state;
     }
 
+    /**
+     * parse data until no more buffers remain
+     *
+     * after this method we are always in the done state
+     * since messages may not contain osc bundles.
+     *
+     * @return void
+     */
     private function _parseBundles() 
     {
         $state = $this->_state;
@@ -563,8 +586,15 @@ class Osc_Parse
                     "Timestamp support is broken,", 
                     E_USER_WARNING
                 );
-                $ts = $this->_multiByteShift(8, 'array');
-                $this->_appendStore($ts);
+                $sec = hexdec($this->_multiByteShift(4));
+                $msec = hexdec($this->_multiByteShift(4));
+
+                // set osc special case to now
+                if ($sec == 0 && $msec == 1) {
+                    $this->_appendStore(new DateTime);
+                } else {
+                    $this->_appendStore(array($sec, $msec));
+                }
                 break 2;
                 
             case "b":
