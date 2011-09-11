@@ -9,11 +9,19 @@ working OSC implementation for PHP this still needs heaps of work.
 
 QUICKSTART
 
+clone the github repo
+
  git clone git://github.com/hairmare/PoscHP.git
  cd PoscHP
- php osctest.php &
- oscsend localhost 10000 /replay/status \
-         iisisi 1 10047 "20110606-190002" 3600 "SGVsbGFzIFJhZGlvCg==" 1
+
+start server/receiver in one shell
+
+ php osctest.php
+
+send some packages in another shell
+
+ php oscsend.php
+
 
 FEATURES
 
