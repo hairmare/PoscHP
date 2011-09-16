@@ -7,22 +7,6 @@ based on a simple state machine. This was written mainly to show that
 such a thing is feasible without needing to hack much C. For a fully
 working OSC implementation for PHP this still needs heaps of work.
 
-QUICKSTART
-
-clone the github repo
-
- git clone git://github.com/hairmare/PoscHP.git
- cd PoscHP
-
-start server/receiver in one shell
-
- php osctest.php
-
-send some packages in another shell
-
- php oscsend.php
-
-
 FEATURES
 
 PoscHP supports parsing of OSC messages and OSC bundles. 
@@ -39,6 +23,35 @@ Its supports the following variable types.
 An example implementation of the parser is given in the Osc_LogDaemon
 component which uses pears System_Daemon and Log subsystems to demonstrate
 what can be done with PoscHP.
+
+QUICKSTART
+
+clone the github repo
+
+ git clone git://github.com/hairmare/PoscHP.git
+ cd PoscHP
+
+start server/receiver in one shell
+
+ php osctest.php
+
+send some packages in another shell
+
+ php oscsend.php
+
+DEVELOPERS
+
+You will need phpcs on your system. Most distros should have a package for
+it and it is available as a PEAR package.
+
+Please use the build hooks in the build dir as follows
+
+ ln -s ../../build/pre-commit .git/hooks/
+
+For the time being i am not using git submodules since they look like risky
+business to me. So these should go into lib/ or elsewhere on your include path
+
+ git clone git://github.com/hairmare/GearmanManager.git
 
 TODO (in no particular order)
 

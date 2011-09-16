@@ -1,0 +1,109 @@
+#!/usr/bin/php
+<?php
+/**
+ * Ctl Script for PoscHP
+ *
+ * This CLI Interface may be used to start the gearman based
+ * server.
+ *
+ * PHP Version 5
+ *
+ * @category   PoscHP
+ * @package    Server
+ * @subpackage CLI
+ * @author     Lucas S. Bickel <hairmare@purplehaze.ch>
+ * @copyright  2011 Lucas S. Bickel 2011 - Alle Rechte vorbehalten
+ * @license    http://www.gnu.org/licenses/gpl-3.0.txt GPLv3
+ * @link       http://osc.purplehaze.ch
+ */
+
+/**
+ * hack the include path
+ *
+ * @todo play nice (configurable) b4 release
+ */
+ini_set('include_path', 'src/:lib/'.ini_get('include_path'));
+
+define('POSCHP_BASEDIR', '/home/hairmare/git.repos/PoscHP');
+
+/**
+ * check for pecl-gearman and GearmanManager, load them
+ */
+if (!extension_loaded('gearman')) {
+    trigger_error("Please install pecl-gearman.", E_USER_ERROR);
+}
+define('GEARMAN_MANAGER_LIB', true);
+require_once 'Gearman/Manager.php';
+
+/**
+ * read console arguments
+ */
+require_once 'Console/Getopt.php';
+
+$cg = new Console_Getopt();
+$args = $cg->readPHPArgv();
+
+/**
+ * last arg has to be command
+ */
+$command = array_pop($args);
+
+/**
+ * callback gets called when gearmanmanager starts ticking
+ *
+ * @return void
+ */
+function Poschp_Running_callback()
+{
+    $c = new GearmanClient;
+    $c->addServer();
+    $c->doHighBackground("poschpSocketStart", '127.0.0.1:10000');
+
+    echo "OK\n";
+}
+
+/**
+ * now for some action
+ */
+switch ($command) {
+
+case "start":
+
+    echo "Starting PoscHP... ";
+    $m = new Gearman_Manager(
+        array(
+            // we tell the manager where our workers are (comma separated)
+            'w' => POSCHP_BASEDIR.'/src/Gearman/Workers',
+            // deamonize
+            'd' => true,
+            // autoupdate workerdir
+            'a' => true,
+            // writepid
+            'P' => POSCHP_BASEDIR.'/poschp.pid',
+            // log file or syslog
+            'l' => POSCHP_BASEDIR.'/poschp.log',
+            // 'l' => syslog,
+            // runas user
+            'u' => $_SERVER['USER'],
+            // workers config
+            'c' => POSCHP_BASEDIR.'/gearman.ini',
+            // startup_callback
+            'n' => 'Poschp_Running_callback',
+            // debug
+            //'v' => 'vvv', // GearmanManager::LOG_LEVEL_DEBUG
+            'v' => 'vvvv',   // GearmanManager::LOG_LEVEL_CRAZY
+        )
+    );
+    break;
+
+case "stop":
+
+    echo "Killing PoscHP\n";
+    posix_kill(file_get_contents(POSCHP_BASEDIR.'/poschp.pid'), 15);
+    break;
+
+default:
+
+    trigger_error("Invalid Command", E_USER_ERROR);
+}
+

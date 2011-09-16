@@ -616,11 +616,6 @@ class Osc_Parse
                 break 2;
 
             case "t":
-                // @todo support timestamp
-                trigger_error(
-                    "Timestamp support is broken,", 
-                    E_USER_WARNING
-                );
                 $sec = hexdec($this->_multiByteShift(4));
                 $msec = hexdec($this->_multiByteShift(4));
 
