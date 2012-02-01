@@ -48,11 +48,6 @@ Please use the build hooks in the build dir as follows
 
  ln -s ../../build/pre-commit .git/hooks/
 
-For the time being i am not using git submodules since they look like risky
-business to me. So these should go into lib/ or elsewhere on your include path
-
- git clone git://github.com/hairmare/GearmanManager.git
-
 TODO (in no particular order)
 
 - Daemon Infrastructure (based on https://github.com/brianlmoon/GearmanManager)
