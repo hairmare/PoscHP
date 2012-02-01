@@ -138,11 +138,23 @@ class Osc_Parse
     }
 
     /**
+     * Look if we have some data
+     *
+     * mainly used for test purposes.
+     *
+     * @return boolean
+     */
+    public function hasData()
+    {
+        return !empty($this->_data);
+    }
+
+    /**
      * Toggle or set debug flag
      *
      * @param Boolean $debug Debug On/Off
      *
-     * @return void
+     * @return Boolean
      */
     public function setDebug($debug = null)
     {
@@ -151,6 +163,7 @@ class Osc_Parse
         } else {
             $this->_debug = $debug;
         }
+        return $this->_debug;
     }
 
     /**
@@ -167,7 +180,7 @@ class Osc_Parse
             );
         } else {
             return array(
-                "address" => $this->_address,
+                "address" => trim($this->_address),
                 "data" => $this->_store
             );
         }
