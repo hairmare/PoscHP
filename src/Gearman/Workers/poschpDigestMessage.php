@@ -14,6 +14,13 @@
  */
 
 /**
+ * Gearman Manager interface from PEAR extension 
+ * 
+ * this has support for getting a list of all the workers
+ */
+require_once 'Net/Gearman/Manager.php';
+
+/**
  * digest and dispatch a package
  *
  * @param GearmanJob $job  actual job instance
@@ -22,27 +29,39 @@
  * @return void
  *
  * @todo this will need to handle the osc address patterns as per spec
- * @todo i need a way to find all the available _osc jobs from gearman
+ * @todo refactor me into heaps of classes
  */
 function poschpDigestMessage($job, &$log)
 {
-    // @todo remove this dirty hack soon as i have some stable mapping algo
-    $_osc_map = array(
-        '/ping' => 'oscPing'
-    );
+    // get workers
+    $ngm = new Net_Gearman_Manager('127.0.0.1:4730');
+    $workers = $ngm->workers();
+    $ngm->disconnect();
+
+    // derive osc message names
+    foreach ($workers AS $worker) {
+        foreach ($worker['abilities'] AS $ability) {
+            if (substr($ability, 0, 3) == 'osc') {
+                $address = substr($ability, 3);
+                $address = preg_replace('/([A-Z]{1})/', '/$1',  $address);
+                $address = strtolower($address);
+                $_osc_map[$address] = $ability;
+            }
+        }
+    }
 
     $data = unserialize($job->workload());
-
     $address = $data['data']['address'];
 
-    file_put_contents('adr', $address, FILE_APPEND);
+    $gc = new GearmanClient();
+    $gc->addServer();
 
-    $delegator_stack = array();
 
     switch($address) {
 
     case "#bundle":
         $log[] = "Handling Bundle";
+        $gc->doBackground('poschpHandleBundle', serialize($data));
         break;
 
     default:
@@ -54,13 +73,6 @@ function poschpDigestMessage($job, &$log)
             $function
         );
         $delegator_stack[$function] = $data;
-    }
-
-    $gc = new GearmanClient();
-    $gc->addServer();
-
-    foreach ($delegator_stack AS $function => $data) {
         $gc->doBackground($function, serialize($data));
     }
 }
-
