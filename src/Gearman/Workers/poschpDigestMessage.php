@@ -37,6 +37,8 @@ function poschpDigestMessage($job, &$log)
 
     file_put_contents('adr', $address, FILE_APPEND);
 
+    $delegator_stack = array();
+
     switch($address) {
 
     case "#bundle":
@@ -51,9 +53,13 @@ function poschpDigestMessage($job, &$log)
             $address,
             $function
         );
+        $delegator_stack[$function] = $data;
+    }
 
-        $gc = new GearmanClient();
-        $gc->addServer();
+    $gc = new GearmanClient();
+    $gc->addServer();
+
+    foreach ($delegator_stack AS $function => $data) {
         $gc->doBackground($function, serialize($data));
     }
 }

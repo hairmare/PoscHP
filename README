@@ -39,6 +39,10 @@ send some packages in another shell
 
  php oscsend.php
 
+start a gearman based server (EXPERIMENTAL)
+
+ php bin/poschp start
+
 DEVELOPERS
 
 You will need phpcs on your system. Most distros should have a package for
@@ -50,8 +54,6 @@ Please use the build hooks in the build dir as follows
 
 TODO (in no particular order)
 
-- Daemon Infrastructure (based on https://github.com/brianlmoon/GearmanManager)
-- OSC Sending Framework (see http://andy.schmeder.net/files/OSC.phps)
 - stable logging and exception handling
 - fix OSC Float support (maybe andy schmeders code contains the hint)
 - add tons of documentation
@@ -61,4 +63,6 @@ TODO (in no particular order)
 - support blobs
 - support timestamped bundles (execute in future and/or ignore stale)
 - message dispatching and pattern matching as per osc specs
-- hack this so it might also run on LE machines (anyone?)
+- this means real multicasting of incoming data
+- and some kind of session managment (session_id via context?)
+- test/hack this so it might also run on LE machines (anyone?)
