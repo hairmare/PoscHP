@@ -467,8 +467,8 @@ class Osc_Parse
     {
         $state = $this->_state;
 
-        // @todo add bundle ts handling
         $bundlets = $this->_multiByteShift(8, 'array');
+        $this->_parseTimestamp();
 
         while (!empty($this->_data)) {
             $bundlesize = hexdec($this->_multiByteShift(4));
@@ -629,18 +629,7 @@ class Osc_Parse
                 break 2;
 
             case "t":
-                $sec = hexdec($this->_multiByteShift(4));
-                $msec = hexdec($this->_multiByteShift(4));
-
-
-                // set osc special case to now
-                if ($sec == 0 && $msec == 1) {
-                    $this->_appendStore(new DateTime);
-                } else {
-                    $date = new DateTime('1900/1/1');
-                    $date->add(new DateInterval(sprintf("PT%sS.", $sec)));
-                    $this->_appendStore($date);
-                }
+                $this->_parseTimestamp();
                 break 2;
                 
             case "b":
@@ -704,6 +693,26 @@ class Osc_Parse
             $state = Osc_Parse::STATE_DONE;
         }
         return $state;
+    }
+
+    /**
+     * grab an osc timestamp from the stream
+     *
+     * @return void
+     */
+    private function _parseTimestamp()
+    {
+        $sec = hexdec($this->_multiByteShift(4));
+        $msec = hexdec($this->_multiByteShift(4));
+
+        // set osc special case to now
+        if ($sec == 0 && $msec == 1) {
+            $this->_appendStore(new DateTime);
+        } else {
+            $date = new DateTime('1900/1/1');
+            $date->add(new DateInterval(sprintf("PT%sS.", $sec)));
+            $this->_appendStore($date);
+        }
     }
 }
 
