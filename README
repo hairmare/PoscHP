@@ -39,10 +39,6 @@ send some packages in another shell
 
  php oscsend.php
 
-start a gearman based server (EXPERIMENTAL)
-
- php bin/poschp start
-
 DEVELOPERS
 
 You will need phpcs on your system. Most distros should have a package for
