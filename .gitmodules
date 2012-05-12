@@ -1,3 +1,0 @@
-[submodule "lib/GearmanManager"]
-	path = lib/GearmanManager
-	url = git://github.com/hairmare/GearmanManager.git
